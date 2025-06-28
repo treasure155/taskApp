@@ -1,16 +1,20 @@
 <?php
+// Enable error reporting
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-require 'config/config.php';  // Make sure this includes the correct PDO setup
+// Start session
+session_start();
+
+// Load config and dependencies
+require 'config/config.php';  // Contains $pdo connection
 require 'vendor/autoload.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-session_start();
-
+// Email sender function
 function sendWelcomeEmail($userEmail, $userName) {
     $mail = new PHPMailer(true);
     try {
@@ -34,12 +38,21 @@ function sendWelcomeEmail($userEmail, $userName) {
     }
 }
 
+// Handle registration
 if (isset($_POST['register'])) {
-    $name = $_POST['name'];
-    $email = $_POST['email'];
+    $name = trim($_POST['name']);
+    $email = trim($_POST['email']);
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
 
-    // Replace $conn with $pdo
+    // ✅ Check for existing email
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
+    $stmt->execute([$email]);
+    if ($stmt->fetch()) {
+        echo "❌ Email already registered. Please use another email.";
+        exit;
+    }
+
+    // ✅ Insert new user
     $stmt = $pdo->prepare("INSERT INTO users (name, email, password) VALUES (?, ?, ?)");
     $result = $stmt->execute([$name, $email, $password]);
 
@@ -48,15 +61,15 @@ if (isset($_POST['register'])) {
         header('Location: thankyou.php');
         exit;
     } else {
-        echo "Error occurred during registration.";
+        echo "❌ Error occurred during registration.";
     }
 }
 
+// Handle login
 if (isset($_POST['login'])) {
-    $email = $_POST['email'];
+    $email = trim($_POST['email']);
     $password = $_POST['password'];
 
-    // Replace $conn with $pdo
     $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
     $stmt->execute([$email]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -67,6 +80,7 @@ if (isset($_POST['login'])) {
         header('Location: dashboard.php');
         exit;
     } else {
-        echo "Invalid login credentials.";
+        echo "❌ Invalid login credentials.";
     }
 }
+?>
